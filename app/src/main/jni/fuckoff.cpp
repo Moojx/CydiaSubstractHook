@@ -1,12 +1,12 @@
 #include <string.h>
 #include <iostream>
 #include <android/log.h>
-#include <sys/atomics.h>
+//#include <asm>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include "Method.h"
-#include <asm/user.h>
+//#include <asm/user.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,8 +45,9 @@ const char *ex13 = "dexopt";
 //MSConfig(MSFilterLibrary, "libdvm.so");
 //hook第三方应用库
 MSConfig(MSFilterExecutable, "/system/bin/app_process");
+
 //const char *workDir = "/mnt/sdcard/hookLua/";
-vector<string> split(const string& str, const string& delim) ;
+vector<string> split(const string &str, const string &delim);
 
 void getNameByPid(pid_t pid, char *task_name) {
     char proc_pid_path[BUF_SIZE];
@@ -146,19 +147,20 @@ string getNextFilePath(const char *fileExt) {
 }
 */
 // 分割字符串
-vector<string> split(const string& str, const string& delim) {
+vector<string> split(const string &str, const string &delim) {
     vector<string> res;
     //判空处理
-    if("" == str) return res;
+    if ("" == str)
+        return res;
     //先将要切割的字符串从string类型转换为char*类型
-    char * strs = new char[str.length() + 1] ; //不要忘了
+    char *strs = new char[str.length() + 1]; //不要忘了
     strcpy(strs, str.c_str());
 
-    char * d = new char[delim.length() + 1];
+    char *d = new char[delim.length() + 1];
     strcpy(d, delim.c_str());
 
     char *p = strtok(strs, d);
-    while(p) {
+    while (p) {
         string s = p; //分割得到的字符串转换为string类型
         res.push_back(s); //存入结果数组
         p = strtok(NULL, d);
@@ -170,20 +172,21 @@ vector<string> split(const string& str, const string& delim) {
 param1 文件流
 param2 文件大小
 param3 文件名称*/
-void saveFile(const void*  data ,int data_len,const char* name){
+void saveFile(const void *data, int data_len, const char *name) {
     //声明变量
     char allname[100];
     //清空残留数据
-    memset(allname, 0, sizeof(allname) );
+    memset(allname, 0, sizeof(allname));
     //拼接头字符串
-    strcat(allname,"/sdcard/hookLua/");
+    strcat(allname, "/sdcard/hookLua/");
+    checkDir(allname);
     //拼接文件名字带扩展名
-    strcat(allname,name);
-    LOGD("[dumpLua] dumped lua file success!: %s",allname);
+    strcat(allname, name);
+    LOGD("[dumpLua] dumped lua file success!: %s", allname);
     //写出文件
-    FILE* outfile;
-    outfile = fopen(allname,"wb");//(输入流) （变量）（输出文件流）
-    fwrite(data , sizeof(unsigned char) , data_len , outfile);
+    FILE *outfile;
+    outfile = fopen(allname, "wb");//(输入流) （变量）（输出文件流）
+    fwrite(data, sizeof(unsigned char), data_len, outfile);
     //清空
     fflush(outfile);
     //关闭文件流
@@ -212,7 +215,7 @@ int new_luaL_loadbuffer(void *L, const char *buff, int size, const char *name) {
             saveFile(buff, size,res[i].c_str());
         }
     return old_luaL_loadbuffer(L, buff, size, name);*/
-   if (name != NULL) {
+    if (name != NULL) {
         char *name_t = strdup(name);
         if (name_t != " " && name_t[0] != ' ') {
             FILE *file;
@@ -230,14 +233,14 @@ int new_luaL_loadbuffer(void *L, const char *buff, int size, const char *name) {
                 if (strstr(name_t, ".lua")) {
                     sprintf(full_name, "%s%s", base_dir, name_t);
                     //lua脚本保存
-                     /*    file = fopen(full_name, "wb");
-                         if(file!=NULL){
-                           fwrite(buff,1,size,file);
-                             fclose(file);
-                             free(name_t);
-                         }*/
+                        file = fopen(full_name, "wb");
+                        if(file!=NULL){
+                          fwrite(buff,1,size,file);
+                            fclose(file);
+                            free(name_t);
+                        }
                     //lua脚本hook加载
-                    file = fopen(full_name, "r");
+                   /* file = fopen(full_name, "r");
                     if (file != NULL) {
                         LOGD("[Tencent]-------path-----%s", full_name);
                         fseek(file, 0, SEEK_END);
@@ -247,7 +250,7 @@ int new_luaL_loadbuffer(void *L, const char *buff, int size, const char *name) {
                         fread(new_buff, new_size, 1, file);
                         fclose(file);
                         return old_luaL_loadbuffer(L, buff, size, name);
-                    }
+                    }*/
                 }
             }
         }
@@ -255,38 +258,44 @@ int new_luaL_loadbuffer(void *L, const char *buff, int size, const char *name) {
     return old_luaL_loadbuffer(L, buff, size, name);
 }
 
-int (*old_mono)(char *data, int data_len, int need_copy, void *status, int refonly, const char *name) = NULL;
+int (*old_mono)(char *data, int data_len, int need_copy, void *status, int refonly,
+                const char *name) = NULL;
+
 int new_mono(char *data, int data_len, int need_copy, void *status, int refonly, const char *name) {
     LOGD("[dumpu3d] dll details is->   name: %s, len: %d, buff: %s", name, data_len, data);
     int ret = old_mono(data, data_len, need_copy, status, refonly, name);
-    if(strstr(name,"Assembly-CSharp.dll")){
-        LOGD("[dumpu3d] dumped dll successful! : %s ", name);
-        saveFile(data, data_len, name);
-    } else{
-        return ret;
-    }
+    std::vector<string> res = split(name, "/");
+    //循环判断字符串是否包含Assembly-CSharp.dll
+    for (int i = 0; i < res.size(); ++i)
+        if (strstr(res[i].c_str(), "Assembly-CSharp.dll")) {
+            LOGI("**********************************[ DUMP ]**********************************");
+            LOGI("Name:%s\nLen:%d\nBuff:%s", name, data_len, data);
+            LOGI("**********************************[ DUMP ]**********************************");
+            //if (strstr(res[i].c_str(), ".lua")) {
+            //LOGD("[dump] name is: %s", res[i].c_str());
+            //假如包含.lua则保存
+            saveFile(data, data_len, res[i].c_str());
+        }
     return ret;
 }
 
 //获取so基地址
-void * get_base_of_lib_from_maps(char *soname)
-{
+void *get_base_of_lib_from_maps(char *soname) {
     void *imagehandle = dlopen(soname, RTLD_LOCAL | RTLD_LAZY);
     if (soname == NULL)
         return NULL;
-    if (imagehandle == NULL){
+    if (imagehandle == NULL) {
         return NULL;
     }
-    uintptr_t * irc = NULL;
+    uintptr_t *irc = NULL;
     FILE *f = NULL;
     char line[200] = {0};
     char *state = NULL;
     char *tok = NULL;
-    char * baseAddr = NULL;
+    char *baseAddr = NULL;
     if ((f = fopen("/proc/self/maps", "r")) == NULL)
         return NULL;
-    while (fgets(line, 199, f) != NULL)
-    {
+    while (fgets(line, 199, f) != NULL) {
         tok = strtok_r(line, "-", &state);
         baseAddr = tok;
         tok = strtok_r(NULL, "\t ", &state);
@@ -298,7 +307,7 @@ void * get_base_of_lib_from_maps(char *soname)
 
         if (tok != NULL) {
             int i;
-            for (i = (int)strlen(tok)-1; i >= 0; --i) {
+            for (i = (int) strlen(tok) - 1; i >= 0; --i) {
                 if (!(tok[i] == ' ' || tok[i] == '\r' || tok[i] == '\n' || tok[i] == '\t'))
                     break;
                 tok[i] = 0;
@@ -309,7 +318,7 @@ void * get_base_of_lib_from_maps(char *soname)
                 if (toklen > 0) {
                     if (toklen >= solen && strcmp(tok + (toklen - solen), soname) == 0) {
                         fclose(f);
-                        return (uintptr_t*)strtoll(baseAddr,NULL,16);
+                        return (uintptr_t *) strtoll(baseAddr, NULL, 16);
                     }
                 }
             }
@@ -318,30 +327,31 @@ void * get_base_of_lib_from_maps(char *soname)
     fclose(f);
     return NULL;
 }
-void * get_base_of_lib_from_soinfo(char *soname)
-{
+
+void *get_base_of_lib_from_soinfo(char *soname) {
     if (soname == NULL)
         return NULL;
     void *imagehandle = dlopen(soname, RTLD_LOCAL | RTLD_LAZY);
-    if (imagehandle == NULL){
+    if (imagehandle == NULL) {
         return NULL;
     }
     char *basename;
     char *searchname;
     int i;
-    void * libdl_ptr=dlopen("libdl.so",3);
-    basename = strrchr(soname,'/');
-    searchname = basename ? basename +1 : soname;
-    for(i =(int) libdl_ptr; i!=NULL; i=*(int*)(i+164)){
-        if(!strcmp(searchname,(char*)i)){
-            unsigned int *lbase= (unsigned int*)i+140;
-            void * baseaddr = (void*)*lbase;
+    void *libdl_ptr = dlopen("libdl.so", 3);
+    basename = strrchr(soname, '/');
+    searchname = basename ? basename + 1 : soname;
+    for (i = (int) libdl_ptr; i != NULL; i = *(int *) (i + 164)) {
+        if (!strcmp(searchname, (char *) i)) {
+            unsigned int *lbase = (unsigned int *) i + 140;
+            void *baseaddr = (void *) *lbase;
             return baseaddr;
         }
     }
     return NULL;
 
 }
+
 //获取模块名称及导出函数
 void *lookup_symbol(char *libraryname, char *symbolname) {
     void *imagehandle = dlopen(libraryname, RTLD_GLOBAL | RTLD_NOW);
@@ -362,14 +372,15 @@ void *lookup_symbol(char *libraryname, char *symbolname) {
 MSInitialize {
     LOGD("Substrate initialized.");
     //void *dvmload = lookup_symbol("/data/data/com.lg.tycq.uc/lib/libcocos2dlua.so","luaL_loadbuffer");
-    //void *dvmload = lookup_symbol("/data/data/com.tencent.tmgp.asura/lib/libmono.so","mono_image_open_from_data_with_name");
+    void *dvmload = lookup_symbol("/data/data/com.shunwo.lua850gold/lib/libcocos2dlua.so",
+                                  "luaL_loadbuffer");
     //void *dvmload = lookup_symbol("/data/data/com.feamber.spaceracing.tecent/libs/libracing.so","luaL_loadbufferx");
-    void *dvmload = lookup_symbol("/data/data/com.fangkuai.n1/lib/libgame.so222","luaL_loadbuffer");
+    //void *dvmload = lookup_symbol("/data/data/com.fangkuai.n1/lib/libgame.so","luaL_loadbuffer");
     if (dvmload == NULL) {
-        LOGD("error find luaL_loadbuffer.");
+        LOGD("error find mono.");
     } else {
         //LOGD("getMono() should be at %p. Let's hook it",getMono);
         MSHookFunction(dvmload, (void *) &new_luaL_loadbuffer, (void **) &old_luaL_loadbuffer);
-        LOGD("hook luaL_loadbuffer sucess.");
+        LOGD("hook mono sucess.");
     }
 }
